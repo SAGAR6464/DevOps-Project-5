@@ -1,179 +1,238 @@
-# Kubernetes End to End Project on EKS(Amazon Kubernetes Service)
+# AWS Fully Serverless Architecture with CI/CD
 
-![EKS](https://imgur.com/oADneqS.png)
+## **Introduction:**
 
-## **Prerequisites**
+Enter the world of serverless computing, where developers are freed from server management. Deploying code becomes a breeze, with a focus on deploying functions rather than wrestling with servers. Originally synonymous with FaaS, serverless technology began with **AWS Lambda** from **Amazon Web Services**. It has now evolved to cover various managed services like databases and storage, expanding its scope beyond its initial function-centric approach.
 
-**kubectl** – A command line tool for working with Kubernetes clusters. For more information, see Installing or updating kubectl.
+Despite its name, serverless doesn’t mean a server-free existence. Instead, it signals a shift in responsibility — developers no longer need to manage, provision, or see the underlying servers. This allows them to concentrate on crafting efficient code without the distractions of server intricacies.
 
-**eksctl** – A command line tool for working with EKS clusters that automates many individual tasks. For more information, see Installing or updating.
+In this article, we’ll explore a practical example of a Fully Serverless Architecture implemented using Terraform — a popular IaC tool and CI/CD implemented using GitHub Actions. The code repository we’ll be examining is hosted on GitHub: [GitHub Repository](https://github.com/NotHarshhaa/DevOps-Projects/tree/master/DevOps-Project-22)
 
-**AWS CLI** – A command line tool for working with AWS services, including Amazon EKS. For more information, see Installing, updating, and uninstalling the AWS CLI in the AWS Command Line Interface User Guide. After installing the AWS CLI, we recommend that you also configure it. For more information, see Quick configuration with aws configure in the AWS Command Line Interface User Guide.
+I have a NodeJS Cloud Native API which I have used to deploy in this architecture. This API is specifically designed to make use of AWS serverless services.
 
-## ✅ Project Title: Deploying 2048 Game App on Amazon EKS
+**Architecture:**
 
-## ✅ Project Description
+![](https://miro.medium.com/v2/resize:fit:1146/1*NN5kTCl1ljuIJ-2dfT7bMQ.gif)
 
-***A Kubernetes End-to-End (E2E) project for deploying a 2048 game app on Amazon Elastic Kubernetes Service (EKS) involves setting up, deploying, and managing the popular 2048 game application on a Kubernetes cluster running on AWS EKS. This project aims to demonstrate how to containerize a web application, deploy it on EKS, manage the cluster, and expose the application to users.***
+The aim of this project is to deploy API to AWS Public cloud using only serverless components.
 
-## ✅ Containerization
+### API code is available [here](https://github.com/NotHarshhaa/DevOps-Projects/tree/master/DevOps-Project-22/serverless-api).
 
-***I began by containerizing the 2048 game using Docker. This involved creating a Dockerfile to define the application's runtime environment and dependencies, ultimately resulting in a Docker image ready for deployment.***
+Following are the serverless services used in this project:
 
-## ✅ Amazon EKS Setup
+- API Gateway
+- Lambda
+- Aurora Serverless (MySql)
+- AWS Simple Storage Service (S3)
+- AWS Secrets Manager
+- AWS Certificate Manager (ACM)
+- Cloudwatch Logs and Metrics
+- Route53
 
-***I set up an Amazon EKS cluster, configuring the required resources and network settings using AWS services. This step included authentication and permissions setup to interact with the EKS cluster.***
+Secrets Manager stores the database credentials securely and the credentials are rotated every 7 days.
+Lambda is launched in the VPC private subnet. The access to secrets manager from within the VPC is through VPC Interface endpoint and access to S3 is through VPC Gateway Endpoint.
 
-## ✅ Deployment
+## Terraform
 
-***The containerized 2048 game was deployed on the EKS cluster using Kubernetes. I defined Kubernetes deployment and service YAML files to ensure the application's efficient management and availability.***
+Terraform is an open-source infrastructure as code software tool that enables you to safely and predictably create, change, and improve infrastructure.
 
-## ✅ Scaling and Management
-
-***I explored Kubernetes's scaling capabilities, adjusting the number of application replicas based on demand. This ensured the game could handle varying levels of user traffic seamlessly***
-
-## ✅ Application Exposure
-
-***To make the 2048 game accessible to users, I created a Kubernetes service to expose it securely over the internet. Additionally, I could have implemented an Ingress controller for more advanced routing***
-
-### Step 1: Create an EKS cluster
-
-![Alt text](image.png)
-
-![Alt text](image-1.png)
-
-### Step 2: Create an IAM role **eks-cluster-role** with 1 policy attached: AmazonEKSClusterPolicy
-
-![Alt text](image-2.png)
-
+## Setting up Infrastructure using Terraform 
+ 
+The terraform init command initializes a working directory containing Terraform configuration files:
 ```
-Create another IAM role 'eks-node-grp-role' with 3 policies attached: 
-(Allows EC2 instances to call AWS services on your behalf.)
-    - AmazonEKSWorkerNodePolicy
-    - AmazonEC2ContainerRegistryReadOnly
-    - AmazonEKS_CNI_Policy
+terraform init
 ```
 
+The terraform plan command creates an execution plan, which lets you preview the changes that Terraform plans to make to your infrastructure:
 ```
-Choose default VPC, Choose 2 or 3 subnets
-Choose a security group which open the ports 22, 80, 8080
-cluster endpoint access: public
-
-# For VPC CNI, CoreDNS and kube-proxy, choose the default versions, For CNI, latest and default are 
-# different. But go with default.
-
-Click 'Create'. This process will take 10-12 minutes. Wait till your cluster shows up as Active.
+terraform plan
 ```
 
-### Step 3: Add Node Groups to our cluster
-
-![Alt text](image-3.png)
-
+The terraform apply command executes the actions proposed in a Terraform plan to create, update, or destroy infrastructure:
 ```
-Now, lets add the worker nodes where the pods can run
-
-Open the cluster > Compute > Add NodeGrp
-Name: <yourname>-eks-nodegrp-1 
-Select the role you already created
-Leave default values for everything else
-
-AMI - choose the default 1 (Amazon Linux 2)
-change desired/minimum/maximum to 1 (from 2)
-Enable SSH access. Choose a security group which allwos 22, 80, 8080
-
-Choose default values for other fields 
-
-Node group creation may take 2-3 minutes
+terraform apply
 ```
 
-### Step 4: Authenticate to this cluster
-
+The terraform destroy command is a convenient way to destroy all remote objects managed by a particular Terraform configuration:
 ```
-Reference:
-https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html
-
-Open cloudshell
-
-# Type on your AWS CLI window 
-aws sts get-caller-identity
-# observe your account and user id details
-
-# Create a  kubeconfig file where it stores the credentials for EKS:
-# kubeconfig configuration allows you to connect to your cluster using the kubectl command line.
-aws eks update-kubeconfig --region region-code --name my-cluster
-ex: aws eks update-kubeconfig --region us-east-1 --name unus-eks-cluster-1 # Use the cluster name you just 
-created
-
-
-# see if you can get the nodes you created
-kubectl get nodes
-
-# Install nano editor in cloudshell. We will need this in the next task
-sudo yum install nano -y
+terraform destroy
 ```
 
-### Step 5: Create a new POD in EKS for the 2048 game
+## **Key Services and Features:**
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-   name: 2048-pod
-   labels:
-      app: 2048-ws
-spec:
-   containers:
-   - name: 2048-container
-     image: blackicebird/2048
-     ports:
-       - containerPort: 80
+Let’s explore the key services and features of this AWS Architecture:
+
+1. **AWS Lambda:**  
+    AWS Lambda, the pioneer in serverless computing, introduces virtual functions that eliminate the need for manual server management. With a focus on short executions, Lambda operates on-demand, ensuring efficient resource utilization. Its automated scaling feature adapts seamlessly to varying workloads, guaranteeing optimal performance. Lambda is Integrated with many programming languages and a whole AWS suite of services and can easily be monitored through AWS CloudWatch. **AWS Lambda** serves as an ideal solution for executing our Cloud Native API code efficiently, all while maintaining minimal costs.
+
+2. **Aurora Serverless:**  
+    Aurora, a powerhouse in the realm of cloud databases, seamlessly supports both Postgres and MySQL. Positioned as “AWS cloud optimized,” Aurora boasts a remarkable 5x performance improvement over MySQL on RDS and over 3x the performance over Postgres on RDS. Offering up to 15 replicas with a replication process faster than MySQL. With instantaneous failover, it is inherently designed for High Availability (HA), although it comes at a slightly higher cost than RDS (20% more), its efficiency and performance make it a compelling choice to store our API’s structured data.
+
+3. **Amazon Simple Storage Service (S3):**  
+    S3 is one of the very popular offerings from AWS. S3 is highly available and durable object based storage service. S3 allows storing objects (files) in buckets with globally unique name. In this case, we are using S3 to store API’s binary image data (JPEG, JPG, PNG).
+
+4. **API Gateway: AWS Lambda** coupled with **API Gateway** presents a hassle-free solution with zero infrastructure management. API Gateway not only supports HTTP, REST Protocols but also the WebSocket Protocol and also adeptly handles API versioning (such as v1, v2) and diverse environments (dev, test, prod). API Gateway also covers authentication and authorization, along with the ability to create API keys and manage request throttling. Additionally, it excels in transforming and validating requests and responses, allowing for the generation of SDKs and API specifications. With the added capability to cache API responses, API Gateway offer a comprehensive and efficient ecosystem for developing and managing APIs.
+
+Some of the managed services used in this Architecture are:
+
+1. **AWS CloudWatch:**
+    Amazon CloudWatch is a robust monitoring and observability service provided by AWS, enabling users to collect and track metrics, collect and monitor log files, and set alarms. Logs and Metrics from Lambda functions are sent to CloudWatch for troubleshooting and observability purposes.
+
+2. **VPC:** The foundation of AWS Infrastructure is the VPC, which isolates resources and provides a private network for the application. VPC can be divided into multiple public (With Internet connectivity) and private subnets.
+
+3. **Amazon Route53:** A highly available, scalable, fully managed and *Authoritative* DNS. The only AWS service which provides 100% availability SLA. It is also a Domain Registrar. Route 53 translates human friendly hostnames into machine IP addresses.
+
+# **Security Considerations:**
+
+1. **AWS Certificate Manager (ACM):**
+    Responsible for Managing, Provisioning and deploying TLS certificates. SSL/TLS certificates provides security in transit for HTTP websites (HTTPS). Supports both public and private TLS certificates. Free of charge. ACM is used to load/associate TLS certificates on Application load balancer, API Gateway, CloudFront, etc.
+
+2. **AWS Secrets Manager:** AWS Secrets Manager is meant for storing secrets. It has the capability to rotate secrets every X days (automates the generation of new secrets on rotation by making use of Lambda in the background). It is tightly Integrated with Amazon RDS (MySQL, PostgreSQL, Aurora), so it can securely store the database credentials. Secrets that are stored in Secrets Manager are encrypted using Key Management Service (KMS).
+
+3. **Security Groups:** Security groups act as firewall for all the instances like EC2, Lambda (through ENI), Interface Endpoints (through ENI), Databases, within the VPC. In the above architecture, Security groups were used to restrict access to database. Further, we can use security groups to restrict access to Interface endpoint that is responsible for accessing Secrets Manager.
+
+4. **VPC Endpoints:** Utilizing VPC Endpoints, enables the establishment of connections to AWS services through a **private network** rather than relying on the public Internet. These endpoints are designed to be both redundant and horizontally scalable. **IGW** and **NATGW** can be avoided to access the AWS services. In our case, we used VPC Interface endpoint (deploys ENI within the subnet) to access secrets manager privately from within the VPC and VPC Gateway endpoint (deploys a Gateway, must be used as a target in the route tables) to access S3 privately from within the VPC.
+
+5. **IAM ROLES:** Lambda functions in the private subnets are assigned an IAM role with necessary permissions to send Logs and Metrics to CloudWatch, access S3 bucket, access Aurora database and also to create, describe and delete Elastic Network Interface (ENI) for lambda within the VPC.
+
+# **CI/CD:**
+
+CI and CD stand for continuous integration and continuous delivery/ deployment. In very simple terms, **Continuous Integration** is a modern software development practice in which incremental code changes are made frequently and reliably to a central code repository like GitHub, Bit Bucket, etc. and **Continuous Delivery** is a software development practice that works in conjunction with CI, CD takes over during the final stages to ensure it’s packaged with everything it needs to deploy to any environment at any time (where as, **Continuous deployment** deploys the applications automatically, eliminating the need for human intervention). The CI/CD pipeline for the above architecture consists of the following:
+
+![](https://miro.medium.com/v2/resize:fit:802/1*xo6Jp9JX8JBOMi5YIGkm_Q.jpeg)
+
+1. **Git:** Git is a distributed version control system that tracks the changes in your application code. Application code can be committed and pushed to a remote cloud version control service like **Github**.
+
+2. **Github Actions:** Github Actions is a feature of Github that Automates the building, testing and deployment of your application code. When a developer raises a Pull Request, a Github Actions workflow can be triggered to run a series of tests before merging the latest code to the main repository. In the above pipeline, after merging the latest code, another Github Actions Workflow can be triggered to build or package the latest code and deploy to Lambda using **AWS CLI** commands.
+
+A **dedicated IAM user** with relevant permissions can be created for Github Actions for deployment. **Access keys** and **secret keys** can be passed through Github Actions Secrets in the workflow configuration.
+
+# Serverless-api
+
+This Cloud Native API is designed to run on AWS Infrastructure while making use of AWS serverless services like Secrets Manager, Lambda functions, API Gateway, etc.
+
+## Prerequisites for running the application locally:
+
+```javascript
+// install dependencies
+npm install
+// start the server script
+npm start
+// run test cases
+npm test
 ```
 
-```
-# apply the config file to create the pod
-kubectl apply -f 2048-pod.yaml
-#pod/2048-pod created
+## Endpoint URLs
 
-# view the newly created pod
-kubectl get pods
-```
-
-### Step 6: Setup Load Balancer Service
-
-```
-apiVersion: v1
-kind: Service
-metadata:
-   name: mygame-svc
-spec:
-   selector:
-      app: 2048-ws
-   ports:
-   - protocol: TCP
-     port: 80
-     targetPort: 80
-   type: LoadBalancer
+```javascript
+// 1. Route to check if the server is healthy
+GET /healthz
+// 2. GET route to retrieve user details
+GET /v1/user/{userId}
+// 3. POST route to add a new user to the database
+POST /v1/user
+// 4. PUT route to update user details
+PUT /v1/user/{userId}
 ```
 
-```
-# apply the config file
-kubectl apply -f mygame-svc.yaml
+### Sample JSON Response for GET
+
+```json
+{
+  "id": 1,
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "username": "jane.doe@example.com",
+  "account_created": "2016-08-29T09:12:33.001Z",
+  "account_updated": "2016-08-29T09:12:33.001Z"
+}
 ```
 
-```
-# view details of the modified service
-kubectl describe svc mygame-svc
+### Sample JSON Request for POST
+
+```json
+{
+  "username": "jane.doe@example.com",
+  "password": "password",
+  "first_name": "Jane",
+  "last_name": "Doe",  
+}
 ```
 
-```
-# Access the LoadBalancer Ingress on the kops instance
-curl <LoadBalancer_Ingress>:<Port_number>
-or
-curl a06aa56b81f5741268daca84dca6b4f8-694631959.us-east-1.elb.amazonaws.com:80
-(try this from your laptop, not from your cloudshell)
+### Sample JSON Request for PUT
+
+```json
+{
+  "password": "password",
+  "first_name": "Jane",
+  "last_name": "Doe",  
+}
 ```
 
+## Endpoint URLs
+
+```javascript
+// 1. GET route to retrieve product details
+GET /v1/product/{productId}
+// 2. POST route to add a new product to the database
+POST /v1/product
+// 3. PUT route to update product details
+PUT /v1/product/{productId}
+// 4. PATCH route to update product details partially
+PUT /v1/product/{productId}
+// 5. DELETE route to delete product details
+PUT /v1/product/{productId}
 ```
-# Go to EC2 console. get the DNS name of ELB and paste the DNS into address bar of the browser
-# It will show the 2048 game. You can play. (need to wait for 2-3 minutes for the 
-# setup to be complete)
+
+### Sample JSON Response for GET
+
+```json
+{
+  "id": 1,
+  "name": null,
+  "description": null,
+  "sku": null,
+  "manufacturer": null,
+  "quantity": 1,
+  "date_added": "2016-08-29T09:12:33.001Z",
+  "date_last_updated": "2016-09-29T09:12:33.001Z",
+  "owner_user_id": 1
+}
+```
+
+### Sample JSON Request for POST
+
+```json
+{
+  "name": null,
+  "description": null,
+  "sku": null,
+  "manufacturer": null,
+  "quantity": 1
+}
+```
+
+### Sample JSON Request for PUT
+
+```json
+{
+  "name": null,
+  "description": null,
+  "sku": null,
+  "manufacturer": null,
+  "quantity": 1
+}
+```
+
+### Sample JSON Request for PATCH
+
+```json
+{
+  "name": null,
+  "description": null,
+  "sku": null,
+  "manufacturer": null,
+  "quantity": 1
+}
+```
+---[](https://github.com/NotHarshhaa)
